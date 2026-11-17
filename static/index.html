@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Studio AI Messenger - MVP</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #f0f2f5; color: #1c1e21; height: 100vh; display: flex; flex-direction: column; }
+    header { background: #fff; border-bottom: 1px solid #ddd; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 16px; font-weight: 700; color: #0866ff; }
+    .header-actions { display: flex; gap: 8px; }
+    .btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:disabled { opacity: 0.65; cursor: not-allowed; }
+    .spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-primary { background: #0866ff; color: #fff; }
+    .btn-primary:hover { background: #0652cc; }
+    .btn-secondary { background: #e4e6eb; color: #050505; }
+    .btn-secondary:hover { background: #d8dadf; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-danger { background: #ef4444; color: #fff; padding: 3px 8px; font-size: 11px; }
+    .btn-sm { padding: 4px 8px; font-size: 12px; }
+
+    .layout { flex: 1; display: grid; grid-template-columns: 280px 1fr 360px; overflow: hidden; }
+    .col { background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; }
+    .col:last-child { border-right: none; }
+    .col-header { padding: 12px; border-bottom: 1px solid #eee; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .scroll { flex: 1; overflow-y: auto; padding: 10px; }
+
+    /* Left: Conversations */
+    .conv-item { padding: 10px; border-radius: 8px; cursor: pointer; margin-bottom: 6px; border: 1px solid transparent; }
+    .conv-item:hover { background: #f2f3f5; }
+    .conv-item.active { background: #e7f3ff; border-color: #b3d4ff; }
+    .conv-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .conv-name { font-weight: 600; font-size: 14px; }
+    .badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 700; text-transform: uppercase; }
+    .badge-draft { background: #fef3c7; color: #b45309; }
+    .badge-auto { background: #dcfce7; color: #15803d; }
+    .badge-manual { background: #e5e7eb; color: #374151; }
+    .conv-preview { font-size: 12px; color: #65676b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Center: Chat */
+    .chat-header { padding: 10px 14px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+    .messages-box { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #f7f8fa; }
+    .msg { max-width: 78%; padding: 8px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.4; position: relative; }
+    .msg-text { white-space: pre-wrap; word-break: break-word; }
+    .msg-customer { align-self: flex-start; background: #fff; border: 1px solid #e4e6eb; color: #050505; }
+    .msg-admin, .msg-ai { align-self: flex-end; background: #0866ff; color: #fff; }
+    .msg-ai { background: #1d4ed8; }
+    .msg-meta { font-size: 10.5px; opacity: 0.78; margin-top: 3px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .teach-link { color: #fde047; cursor: pointer; text-decoration: underline; font-weight: 600; }
+
+    .draft-box { background: #fffbeb; border-top: 2px solid #f59e0b; padding: 8px 14px 10px; position: relative; }
+    .draft-resizer { height: 6px; cursor: ns-resize; display: flex; justify-content: center; align-items: center; margin-bottom: 4px; }
+    .draft-resizer::before { content: ""; width: 42px; height: 3px; border-radius: 2px; background: #f59e0b; opacity: 0.55; }
+    .draft-resizer:hover::before { opacity: 1; }
+    .draft-label { font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .draft-box textarea { width: 100%; border: 1px solid #fcd34d; border-radius: 6px; padding: 8px 10px; font-size: 13.5px; line-height: 1.45; resize: vertical; height: 135px; min-height: 90px; max-height: 55vh; }
+    .draft-actions { display: flex; gap: 8px; margin-top: 6px; }
+
+    .chat-input { padding: 10px 14px; border-top: 1px solid #ddd; display: flex; gap: 8px; background: #fff; }
+    .chat-input input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; }
+
+    /* Right: Tabs */
+    .tabs { display: flex; border-bottom: 1px solid #ddd; }
+    .tab { flex: 1; text-align: center; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; color: #65676b; }
+    .tab.active { color: #0866ff; border-bottom-color: #0866ff; }
+    .card { background: #f8f9fa; border: 1px solid #e4e6eb; border-radius: 8px; padding: 10px; margin-bottom: 10px; font-size: 13px; }
+    .card-title { font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+    .form-group { margin-bottom: 8px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #4b5563; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 7px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+    .empty { text-align: center; color: #65676b; font-size: 13px; margin-top: 30px; }
+
+    /* Modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .modal { background: #fff; width: 420px; max-width: 92vw; border-radius: 10px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .modal h3 { font-size: 15px; margin-bottom: 10px; }
+
+    /* Messenger-style imported list & detail popup */
+    .fb-list-section { margin-bottom: 12px; }
+    .fb-section-title { font-size: 12px; font-weight: 700; color: #65676b; margin: 8px 0 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .fb-conv-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; cursor: pointer; transition: background 0.15s; }
+    .fb-conv-row:hover { background: #f0f2f5; }
+    .fb-avatar { width: 44px; height: 44px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .fb-conv-info { flex: 1; min-width: 0; }
+    .fb-conv-name { font-weight: 600; font-size: 14px; color: #050505; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fb-conv-sub { font-size: 12.5px; color: #65676b; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+    .fb-conv-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fb-conv-time { flex-shrink: 0; }
+
+    .modal-chat { width: 460px; max-width: 94vw; max-height: 82vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+    .modal-chat-header { padding: 10px 14px; border-bottom: 1px solid #e4e6eb; display: flex; justify-content: space-between; align-items: center; }
+    .modal-chat-body { flex: 1; overflow-y: auto; padding: 12px; background: #f0f2f5; display: flex; flex-direction: column; gap: 6px; min-height: 240px; max-height: 58vh; }
+    .modal-chat-body .msg { padding: 7px 11px; font-size: 13px; max-width: 80%; }
+    .modal-chat-footer { padding: 8px 14px; border-top: 1px solid #e4e6eb; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+
+    /* Toast notification */
+    .toast-container { position: fixed; top: 56px; right: 16px; z-index: 100; display: flex; flex-direction: column; gap: 8px; max-width: 340px; }
+    .toast { background: #1c1e21; color: #fff; padding: 12px 14px; border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.25); font-size: 13px; display: flex; flex-direction: column; gap: 6px; border-left: 4px solid #0866ff; animation: slideIn 0.2s ease-out; }
+    @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .conv-item.has-unread { background: #f0f7ff; border-left: 3px solid #0866ff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Studio Ảnh Cưới AI — Messenger MVP</h1>
+    <div class="header-actions">
+      <button class="btn btn-secondary" id="btnNotify" onclick="requestNotifyPermission()">Bật thông báo</button>
+      <button class="btn btn-secondary" onclick="openSimModal()">+ Giả lập khách nhắn</button>
+      <button class="btn btn-secondary" id="btnImportFb" onclick="importFbHistory(this)">Kéo lịch sử chat FB</button>
+    </div>
+  </header>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="layout">
+    <!-- Left: Conversations -->
+    <div class="col">
+      <div class="col-header">
+        <span>Hội thoại</span>
+        <button class="btn btn-secondary btn-sm" onclick="loadConversations()">Làm mới</button>
+      </div>
+      <div class="scroll" id="convList"></div>
+    </div>
+
+    <!-- Center: Chat -->
+    <div class="col">
+      <div class="chat-header">
+        <div>
+          <strong id="chatTitle">Chọn một hội thoại</strong>
+        </div>
+        <div id="modeControls" style="display:none;">
+          <select id="modeSelect" onchange="changeMode()" style="padding: 4px 8px; border-radius: 6px; font-size: 13px;">
+            <option value="draft">Chế độ: AI Viết Nháp (Chờ duyệt)</option>
+            <option value="auto">Chế độ: AI Tự Trả Lời</option>
+            <option value="manual">Chế độ: Tắt AI (Tự nhắn)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="messages-box" id="messagesBox">
+        <div class="empty">Chưa chọn hội thoại nào. Bạn có thể bấm "+ Giả lập khách nhắn" ở góc trên để test thử ngay!</div>
+      </div>
+
+      <div class="draft-box" id="draftBox" style="display:none;">
+        <div class="draft-resizer" id="draftResizer" title="Kéo lên xuống để chỉnh độ cao khung gợi ý"></div>
+        <div class="draft-label">
+          <span>AI gợi ý câu trả lời <span id="aiStatsBadge" style="font-weight:400; color:#65676b; font-size:11px;"></span></span>
+          <button class="btn btn-secondary btn-sm" onclick="teachFromDraft()">Dạy lại câu nháp này</button>
+        </div>
+        <textarea id="draftText"></textarea>
+        <div class="draft-actions">
+          <button class="btn btn-success btn-sm" id="btnApproveDraft" onclick="approveDraft(this)">Duyệt & Gửi qua FB</button>
+          <button class="btn btn-secondary btn-sm" id="btnRegenDraft" onclick="regenerateDraft(this)">AI viết lại câu khác</button>
+        </div>
+      </div>
+
+      <div class="chat-input">
+        <input id="manualInput" type="text" placeholder="Nhập tin nhắn trả lời trực tiếp..." onkeydown="if(event.key==='Enter') sendManual()" />
+        <button class="btn btn-primary" id="btnSendManual" onclick="sendManual(this)">Gửi</button>
+      </div>
+    </div>
+
+    <!-- Right: Rules & Knowledge -->
+    <div class="col">
+      <div class="tabs">
+        <div class="tab active" id="tabRulesBtn" onclick="switchTab('rules')">Dạy lại AI (Rules)</div>
+        <div class="tab" id="tabKnowledgeBtn" onclick="switchTab('knowledge')">Kho tri thức & Mẫu chat</div>
+      </div>
+
+      <div class="scroll" id="tabRules">
+        <div class="card">
+          <div class="card-title">Thêm quy tắc trực tiếp cho AI</div>
+          <div class="form-group">
+            <textarea id="directFeedback" rows="2" placeholder="VD: Luôn xưng em, gọi khách là dâu rể. Khi khách hỏi gói ngoại cảnh phải hỏi ngày cưới trước."></textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnAddRule" onclick="addDirectRule(this)">Lưu quy tắc</button>
+        </div>
+        <div id="rulesList"></div>
+      </div>
+
+      <div class="scroll" id="tabKnowledge" style="display:none;">
+        <div class="card" style="background:#eff6ff; border-color:#bfdbfe;">
+          <div class="card-title" style="color:#1e40af;">Tối ưu hóa học văn phong (Nén mẫu chat)</div>
+          <div style="font-size:12px; color:#374151; margin-bottom:8px;">Tự động đọc toàn bộ hội thoại mẫu từ FB và nén thành 1 bản Cẩm nang văn phong ngắn gọn để AI học nhanh & tiết kiệm token.</div>
+          <button class="btn btn-primary btn-sm" id="btnDistillStyle" onclick="distillStyleGuide(this)">Nén thành Cẩm nang văn phong</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Thêm bảng giá / đoạn chat mẫu</div>
+          <div class="form-group">
+            <label>Tiêu đề</label>
+            <input id="kTitle" type="text" placeholder="VD: Bảng giá gói Studio 2026" />
+          </div>
+          <div class="form-group">
+            <label>Phân loại</label>
+            <select id="kCategory">
+              <option value="pricing">Bảng giá / Gói chụp</option>
+              <option value="sample_chat">Đoạn chat mẫu (để học văn phong)</option>
+              <option value="faq">Chính sách / FAQ</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nội dung</label>
+            <textarea id="kContent" rows="4" placeholder="Dán bảng giá hoặc đoạn hội thoại mẫu giữa bạn và khách vào đây..."></textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnAddKnowledge" onclick="addKnowledge(this)">Lưu vào kho</button>
+        </div>
+        <div id="knowledgeList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Giả lập khách nhắn -->
+  <div class="modal-backdrop" id="simModal">
+    <div class="modal">
+      <h3>Giả lập khách nhắn tin vào Fanpage</h3>
+      <div class="form-group">
+        <label>Tên khách hàng</label>
+        <input id="simName" type="text" value="Cô dâu Minh Anh" />
+      </div>
+      <div class="form-group">
+        <label>Nội dung tin nhắn</label>
+        <textarea id="simText" rows="3" placeholder="VD: Cho em hỏi bên mình có gói chụp ảnh cưới ngoại cảnh Đà Lạt không ạ?"></textarea>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+        <button class="btn btn-secondary" onclick="closeSimModal()">Hủy</button>
+        <button class="btn btn-primary" id="btnSubmitSim" onclick="submitSim(this)">Gửi giả lập</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Góp ý sửa AI -->
+  <div class="modal-backdrop" id="teachModal">
+    <div class="modal">
+      <h3>Chỉ cho AI cần cải thiện gì</h3>
+      <div class="form-group">
+        <label>Câu AI đã viết:</label>
+        <textarea id="teachAiMsg" rows="3" readonly style="background:#f3f4f6;"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Góp ý của bạn (AI sẽ nhớ cho các lần sau):</label>
+        <textarea id="teachFeedback" rows="3" placeholder="VD: Câu này báo giá hơi cứng, cần hỏi thêm khách dự kiến cưới tháng mấy để tư vấn gói phù hợp."></textarea>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+        <button class="btn btn-secondary" onclick="closeTeachModal()">Hủy</button>
+        <button class="btn btn-primary" id="btnSubmitTeach" onclick="submitTeach(this)">Lưu & Cho AI học</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Chi tiết hội thoại FB -->
+  <div class="modal-backdrop" id="fbDetailModal" onclick="if(event.target===this) closeFbDetailModal()">
+    <div class="modal modal-chat">
+      <div class="modal-chat-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="fb-avatar" id="fbDetailAvatar" style="width:36px; height:36px; font-size:13px;"></div>
+          <div>
+            <div id="fbDetailName" style="font-weight:700; font-size:15px;"></div>
+            <div style="font-size:11px; color:#65676b;">Lịch sử hội thoại mẫu (AI dùng để học văn phong)</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="closeFbDetailModal()">Đóng</button>
+      </div>
+      <div class="modal-chat-body" id="fbDetailMessages"></div>
+      <div class="modal-chat-footer">
+        <button class="btn btn-danger" id="fbDetailDeleteBtn">Xóa hội thoại mẫu này</button>
+        <button class="btn btn-primary btn-sm" onclick="closeFbDetailModal()">Xong</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentPsid = null;
+    let knownMsgIds = {};
+    let firstLoadDone = false;
+    let unreadCount = 0;
+
+    function updateNotifyBtn() {
+      const btn = document.getElementById("btnNotify");
+      if (!("Notification" in window)) {
+        btn.textContent = "Trình duyệt không hỗ trợ TB";
+        btn.disabled = true;
+        return;
+      }
+      if (Notification.permission === "granted") {
+        btn.textContent = "Thông báo: Đang bật";
+        btn.classList.remove("btn-secondary");
+        btn.classList.add("btn-success");
+      } else if (Notification.permission === "denied") {
+        btn.textContent = "Thông báo bị chặn (mở khóa ở trình duyệt)";
+      } else {
+        btn.textContent = "Bật thông báo";
+      }
+    }
+
+    async function requestNotifyPermission() {
+      if (!("Notification" in window)) return;
+      const perm = await Notification.requestPermission();
+      updateNotifyBtn();
+      if (perm === "granted") {
+        playChime();
+        new Notification("Studio AI Messenger", { body: "Đã bật thông báo tin nhắn mới từ Fanpage!" });
+      }
+    }
+
+    function playChime() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch (e) {}
+    }
+
+    function showToast(psid, customerName, messageText) {
+      const container = document.getElementById("toastContainer");
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.innerHTML = `
+        <div style="font-weight:700; display:flex; justify-content:space-between; align-items:center;">
+          <span>Tin nhắn mới từ ${escapeHtml(customerName)}</span>
+          <span style="cursor:pointer; opacity:0.7;" onclick="this.closest('.toast').remove()">✕</span>
+        </div>
+        <div style="color:#d1d5db; max-height:40px; overflow:hidden;">${escapeHtml(messageText)}</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="selectConversation('${psid}'); this.closest('.toast').remove();">Xem AI gợi ý</button>
+        </div>
+      `;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 12000);
+    }
+
+    function notifyNewCustomerMessage(conv) {
+      playChime();
+      unreadCount += 1;
+      document.title = `(${unreadCount}) Tin nhắn mới! - Studio AI Messenger`;
+      showToast(conv.psid, conv.customer_name, conv.last_message || "Khách vừa nhắn tin");
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        const n = new Notification(`Tin nhắn mới: ${conv.customer_name}`, {
+          body: conv.last_message || "Bấm để xem AI gợi ý trả lời",
+        });
+        n.onclick = () => {
+          window.focus();
+          selectConversation(conv.psid);
+          n.close();
+        };
+      }
+    }
+
+    window.addEventListener("focus", () => {
+      unreadCount = 0;
+      document.title = "Studio AI Messenger - MVP";
+    });
+
+    async function withLoading(btn, loadingText, fn) {
+      if (!btn) return fn();
+      if (btn.disabled) return;
+      const origHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> ${escapeHtml(loadingText)}`;
+      try {
+        return await fn();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+
+    async function api(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Có lỗi xảy ra");
+      return data;
+    }
+
+    function switchTab(tab) {
+      document.getElementById("tabRules").style.display = tab === "rules" ? "block" : "none";
+      document.getElementById("tabKnowledge").style.display = tab === "knowledge" ? "block" : "none";
+      document.getElementById("tabRulesBtn").classList.toggle("active", tab === "rules");
+      document.getElementById("tabKnowledgeBtn").classList.toggle("active", tab === "knowledge");
+    }
+
+    async function loadConversations() {
+      const data = await api("/api/conversations");
+      const box = document.getElementById("convList");
+      if (!data.conversations.length) {
+        box.innerHTML = '<div class="empty">Chưa có tin nhắn nào.</div>';
+        firstLoadDone = true;
+        return;
+      }
+
+      for (const c of data.conversations) {
+        const prevId = knownMsgIds[c.psid];
+        if (firstLoadDone && c.last_msg_id && c.last_msg_id !== prevId && c.last_sender === "customer") {
+          notifyNewCustomerMessage(c);
+        }
+        if (c.last_msg_id) {
+          knownMsgIds[c.psid] = c.last_msg_id;
+        }
+      }
+      firstLoadDone = true;
+
+      box.innerHTML = data.conversations.map(c => `
+        <div class="conv-item ${c.psid === currentPsid ? "active" : ""} ${c.has_draft && c.psid !== currentPsid ? "has-unread" : ""}" onclick="selectConversation('${c.psid}')">
+          <div class="conv-top">
+            <span class="conv-name">${escapeHtml(c.customer_name)}</span>
+            <span class="badge badge-${c.mode}">${c.mode}</span>
+          </div>
+          <div class="conv-preview">${c.has_draft ? "[Có nháp AI] " : ""}${escapeHtml(c.last_message || "")}</div>
+        </div>
+      `).join("");
+    }
+
+    async function selectConversation(psid) {
+      currentPsid = psid;
+      await loadConversations();
+      await loadMessages();
+    }
+
+    async function loadMessages() {
+      if (!currentPsid) return;
+      const data = await api(`/api/conversations/${currentPsid}/messages`);
+      document.getElementById("chatTitle").textContent = data.conversation.customer_name;
+      document.getElementById("modeControls").style.display = "block";
+      document.getElementById("modeSelect").value = data.conversation.mode;
+
+      const box = document.getElementById("messagesBox");
+      const draftBox = document.getElementById("draftBox");
+      draftBox.style.display = "none";
+
+      let html = "";
+      for (const m of data.messages) {
+        if (m.is_draft) {
+          draftBox.style.display = "block";
+          const draftEl = document.getElementById("draftText");
+          if (document.activeElement !== draftEl && !draftEl.dataset.busy) {
+            draftEl.value = m.text;
+          }
+          continue;
+        }
+        const cls = m.sender === "customer" ? "msg-customer" : (m.sender === "ai" ? "msg-ai" : "msg-admin");
+        const label = m.sender === "customer" ? "Khách" : (m.sender === "ai" ? "AI đã gửi" : "Bạn");
+        const teachBtn = m.sender === "ai"
+          ? `<span class="teach-link" onclick="openTeachModal(${JSON.stringify(m.text)})">Sửa / Dạy lại AI</span>`
+          : "";
+        html += `
+          <div class="msg ${cls}">
+            <div class="msg-text">${escapeHtml(m.text)}</div>
+            <div class="msg-meta">
+              <span>${label}</span>
+              ${teachBtn}
+            </div>
+          </div>
+        `;
+      }
+      box.innerHTML = html || '<div class="empty">Chưa có tin nhắn.</div>';
+      box.scrollTop = box.scrollHeight;
+      loadAiStats();
+    }
+
+    async function loadAiStats() {
+      try {
+        const data = await api("/api/ai-stats");
+        const s = data.stats;
+        const badge = document.getElementById("aiStatsBadge");
+        if (s && s.model) {
+          badge.textContent = `(RAG: ${s.rag_used}/${s.rag_total} mẫu · ${s.cache_status} · ${s.prompt_tokens} in / ${s.output_tokens} out)`;
+        }
+      } catch (e) {}
+    }
+
+    async function changeMode() {
+      if (!currentPsid) return;
+      const mode = document.getElementById("modeSelect").value;
+      await api(`/api/conversations/${currentPsid}/mode`, {
+        method: "POST",
+        body: JSON.stringify({ mode }),
+      });
+      await loadConversations();
+    }
+
+    async function approveDraft(btn) {
+      if (!currentPsid) return;
+      const text = document.getElementById("draftText").value.trim();
+      if (!text) return;
+      await withLoading(btn || document.getElementById("btnApproveDraft"), "Đang gửi...", async () => {
+        try {
+          await api(`/api/conversations/${currentPsid}/send`, {
+            method: "POST",
+            body: JSON.stringify({ text, sender: "ai" }),
+          });
+          await loadMessages();
+          await loadConversations();
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+    }
+
+    async function regenerateDraft(btn) {
+      if (!currentPsid) return;
+      const draftEl = document.getElementById("draftText");
+      await withLoading(btn || document.getElementById("btnRegenDraft"), "AI đang viết lại...", async () => {
+        draftEl.dataset.busy = "1";
+        draftEl.value = "Đang tạo câu trả lời mới...";
+        try {
+          await api(`/api/conversations/${currentPsid}/regenerate`, { method: "POST" });
+        } finally {
+          delete draftEl.dataset.busy;
+        }
+        await loadMessages();
+      });
+    }
+
+    async function sendManual(btn) {
+      if (!currentPsid) return;
+      const input = document.getElementById("manualInput");
+      const text = input.value.trim();
+      if (!text) return;
+      await withLoading(btn || document.getElementById("btnSendManual"), "Đang gửi...", async () => {
+        try {
+          await api(`/api/conversations/${currentPsid}/send`, {
+            method: "POST",
+            body: JSON.stringify({ text, sender: "admin" }),
+          });
+          input.value = "";
+          await loadMessages();
+          await loadConversations();
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+    }
+
+    // Rules
+    async function loadRules() {
+      const data = await api("/api/rules");
+      const box = document.getElementById("rulesList");
+      box.innerHTML = data.rules.map(r => `
+        <div class="card">
+          <div class="card-title">
+            <span>Quy tắc #${r.id}</span>
+            <button class="btn btn-danger" onclick="deleteRule(${r.id})">Xóa</button>
+          </div>
+          <div>${escapeHtml(r.rule_text)}</div>
+        </div>
+      `).join("") || '<div class="empty">Chưa có quy tắc nào.</div>';
+    }
+
+    async function addDirectRule(btn) {
+      const feedback = document.getElementById("directFeedback").value.trim();
+      if (!feedback) return;
+      await withLoading(btn || document.getElementById("btnAddRule"), "Đang lưu...", async () => {
+        await api("/api/feedback", {
+          method: "POST",
+          body: JSON.stringify({ ai_message: "(Quy tắc trực tiếp)", user_feedback: feedback }),
+        });
+        document.getElementById("directFeedback").value = "";
+        await loadRules();
+      });
+    }
+
+    async function deleteRule(id) {
+      await api(`/api/rules/${id}`, { method: "DELETE" });
+      await loadRules();
+    }
+
+    let knowledgeCache = {};
+
+    function getAvatarColor(name) {
+      const colors = ["#0866ff", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#ef4444"];
+      let hash = 0;
+      for (let i = 0; i < (name || "").length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    function getInitials(name) {
+      const parts = (name || "?").trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function formatMessengerTime(isoStr) {
+      if (!isoStr) return "";
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return "";
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      if (sameDay) {
+        return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
+      }
+      const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+      if (diffDays < 7) {
+        const days = ["CN", "T.2", "T.3", "T.4", "T.5", "T.6", "T.7"];
+        return days[d.getDay()];
+      }
+      return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+    }
+
+    // Knowledge
+    async function loadKnowledge() {
+      const data = await api("/api/knowledge");
+      const box = document.getElementById("knowledgeList");
+      knowledgeCache = {};
+
+      const fbConvs = [];
+      const otherItems = [];
+
+      for (const item of data.items) {
+        knowledgeCache[item.id] = item;
+        if (item.meta_json) {
+          try {
+            const meta = JSON.parse(item.meta_json);
+            fbConvs.push({ item, meta });
+            continue;
+          } catch (e) {}
+        }
+        otherItems.push(item);
+      }
+
+      // Sắp xếp list FB Messenger mới nhất lên đầu
+      fbConvs.sort((a, b) => new Date(b.meta.last_time || 0) - new Date(a.meta.last_time || 0));
+
+      let html = "";
+      if (fbConvs.length) {
+        html += `<div class="fb-section-title">Hội thoại từ Fanpage (${fbConvs.length})</div><div class="fb-list-section">`;
+        html += fbConvs.map(({ item, meta }) => {
+          const name = meta.customer_name || item.title;
+          const timeStr = formatMessengerTime(meta.last_time);
+          const color = getAvatarColor(name);
+          const initials = getInitials(name);
+          return `
+            <div class="fb-conv-row" onclick="openFbDetailModal(${item.id})">
+              <div class="fb-avatar" style="background:${color};">${escapeHtml(initials)}</div>
+              <div class="fb-conv-info">
+                <div class="fb-conv-name">${escapeHtml(name)}</div>
+                <div class="fb-conv-sub">
+                  <span class="fb-conv-preview">${escapeHtml(meta.last_preview || "")}</span>
+                  ${timeStr ? `<span class="fb-conv-time">· ${escapeHtml(timeStr)}</span>` : ""}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+        html += `</div>`;
+      }
+
+      if (otherItems.length) {
+        html += `<div class="fb-section-title">Bảng giá & Tài liệu khác</div>`;
+        html += otherItems.map(item => `
+          <div class="card">
+            <div class="card-title">
+              <span>[${escapeHtml(item.category)}] ${escapeHtml(item.title)}</span>
+              <button class="btn btn-danger" onclick="deleteKnowledge(${item.id})">Xóa</button>
+            </div>
+            <div style="white-space:pre-wrap; color:#374151; max-height:120px; overflow-y:auto;">${escapeHtml(item.content)}</div>
+          </div>
+        `).join("");
+      }
+
+      box.innerHTML = html || '<div class="empty">Chưa có dữ liệu tri thức.</div>';
+    }
+
+    function formatFullTime(isoStr) {
+      if (!isoStr) return "";
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return "";
+      const time = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
+      const date = d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+      return `${time} · ${date}`;
+    }
+
+    function openFbDetailModal(itemId) {
+      const item = knowledgeCache[itemId];
+      if (!item || !item.meta_json) return;
+      const meta = JSON.parse(item.meta_json);
+      const name = meta.customer_name || item.title;
+
+      const avatar = document.getElementById("fbDetailAvatar");
+      avatar.style.background = getAvatarColor(name);
+      avatar.textContent = getInitials(name);
+      document.getElementById("fbDetailName").textContent = name;
+
+      const msgBox = document.getElementById("fbDetailMessages");
+      msgBox.innerHTML = (meta.messages || []).map(m => {
+        const isPage = m.sender === "page";
+        const cls = isPage ? "msg-admin" : "msg-customer";
+        const timeStr = formatFullTime(m.time);
+        return `<div class="msg ${cls}"><div class="msg-text">${escapeHtml(m.text)}</div><div class="msg-meta"><span>${escapeHtml(isPage ? "Bạn (Studio)" : name)}${timeStr ? " · " + escapeHtml(timeStr) : ""}</span></div></div>`;
+      }).join("") || '<div class="empty">Không có tin nhắn.</div>';
+
+      document.getElementById("fbDetailDeleteBtn").onclick = async () => {
+        await deleteKnowledge(itemId);
+        closeFbDetailModal();
+      };
+
+      document.getElementById("fbDetailModal").style.display = "flex";
+      msgBox.scrollTop = msgBox.scrollHeight;
+    }
+
+    function closeFbDetailModal() {
+      document.getElementById("fbDetailModal").style.display = "none";
+    }
+
+    async function addKnowledge(btn) {
+      const title = document.getElementById("kTitle").value.trim();
+      const category = document.getElementById("kCategory").value;
+      const content = document.getElementById("kContent").value.trim();
+      if (!title || !content) return alert("Vui lòng nhập đủ tiêu đề và nội dung");
+      await withLoading(btn || document.getElementById("btnAddKnowledge"), "Đang lưu...", async () => {
+        await api("/api/knowledge", {
+          method: "POST",
+          body: JSON.stringify({ title, category, content }),
+        });
+        document.getElementById("kTitle").value = "";
+        document.getElementById("kContent").value = "";
+        await loadKnowledge();
+      });
+    }
+
+    async function deleteKnowledge(id) {
+      await api(`/api/knowledge/${id}`, { method: "DELETE" });
+      await loadKnowledge();
+    }
+
+    async function distillStyleGuide(btn) {
+      await withLoading(btn || document.getElementById("btnDistillStyle"), "AI đang phân tích & nén...", async () => {
+        try {
+          const res = await api("/api/knowledge/distill-style", { method: "POST" });
+          alert(`Đã nén ${res.source_count} đoạn hội thoại thành Cẩm nang văn phong!`);
+          await loadKnowledge();
+        } catch (e) {
+          alert("Lỗi nén cẩm nang: " + e.message);
+        }
+      });
+    }
+
+    async function importFbHistory(btn) {
+      await withLoading(btn || document.getElementById("btnImportFb"), "Đang kéo từ FB...", async () => {
+        try {
+          const res = await api("/api/import-fb-history", { method: "POST" });
+          alert(`Đã kéo thành công ${res.imported_count} đoạn hội thoại từ Fanpage vào Kho tri thức!`);
+          switchTab("knowledge");
+          await loadKnowledge();
+        } catch (e) {
+          alert("Lỗi kéo lịch sử FB: " + e.message);
+        }
+      });
+    }
+
+    // Modals
+    function openSimModal() { document.getElementById("simModal").style.display = "flex"; }
+    function closeSimModal() { document.getElementById("simModal").style.display = "none"; }
+    async function submitSim(btn) {
+      const customer_name = document.getElementById("simName").value.trim();
+      const text = document.getElementById("simText").value.trim();
+      if (!text) return;
+      await withLoading(btn || document.getElementById("btnSubmitSim"), "AI đang trả lời...", async () => {
+        try {
+          const res = await api("/api/simulate", {
+            method: "POST",
+            body: JSON.stringify({ customer_name, text }),
+          });
+          document.getElementById("simText").value = "";
+          closeSimModal();
+          await selectConversation(res.psid);
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+    }
+
+    function teachFromDraft() {
+      const text = document.getElementById("draftText").value.trim();
+      if (text) openTeachModal(text);
+    }
+    function openTeachModal(aiMsg) {
+      document.getElementById("teachAiMsg").value = aiMsg;
+      document.getElementById("teachFeedback").value = "";
+      document.getElementById("teachModal").style.display = "flex";
+    }
+    function closeTeachModal() { document.getElementById("teachModal").style.display = "none"; }
+    async function submitTeach(btn) {
+      const ai_message = document.getElementById("teachAiMsg").value;
+      const user_feedback = document.getElementById("teachFeedback").value.trim();
+      if (!user_feedback) return;
+      await withLoading(btn || document.getElementById("btnSubmitTeach"), "Đang lưu & viết lại...", async () => {
+        await api("/api/feedback", {
+          method: "POST",
+          body: JSON.stringify({ ai_message, user_feedback }),
+        });
+        closeTeachModal();
+        await loadRules();
+        if (currentPsid) {
+          await regenerateDraft();
+        }
+      });
+    }
+
+    // Kéo mép trên khung gợi ý để tăng giảm độ cao
+    (function initDraftResizer() {
+      const resizer = document.getElementById("draftResizer");
+      const draftEl = document.getElementById("draftText");
+      let startY = 0, startH = 0, dragging = false;
+
+      resizer.addEventListener("mousedown", (e) => {
+        dragging = true;
+        startY = e.clientY;
+        startH = draftEl.offsetHeight;
+        document.body.style.userSelect = "none";
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        const delta = startY - e.clientY;
+        const nextH = Math.min(window.innerHeight * 0.55, Math.max(90, startH + delta));
+        draftEl.style.height = nextH + "px";
+      });
+      window.addEventListener("mouseup", () => {
+        if (dragging) {
+          dragging = false;
+          document.body.style.userSelect = "";
+        }
+      });
+    })();
+
+    function escapeHtml(str) {
+      return (str || "").replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    // Init & poll every 4 seconds
+    updateNotifyBtn();
+    loadConversations();
+    loadRules();
+    loadKnowledge();
+    setInterval(() => {
+      loadConversations();
+      if (currentPsid) loadMessages();
+    }, 4000);
+  </script>
+</body>
+</html>
