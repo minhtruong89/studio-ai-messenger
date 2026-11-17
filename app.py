@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -48,6 +48,50 @@ class SimulatePayload(BaseModel):
 @app.get("/")
 async def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy():
+    return """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Privacy Policy - Quien Studio</title>
+<style>body{font-family:sans-serif;max-width:760px;margin:40px auto;padding:0 20px;line-height:1.6;color:#222;}h1,h2{color:#0866ff;}</style></head>
+<body>
+<h1>Privacy Policy — Quien Studio</h1>
+<p><strong>Effective Date:</strong> November 2026</p>
+<p>Quien Studio operates an internal customer-support messaging assistant integrated with Facebook Messenger to respond to inquiries from customers who message our official Facebook Page.</p>
+<h2>1. Information We Collect</h2>
+<ul>
+  <li>Your Facebook Page-Scoped ID (PSID) and public display name.</li>
+  <li>Messages and attachments you voluntarily send to our Facebook Page via Messenger.</li>
+</ul>
+<h2>2. How We Use Information</h2>
+<ul>
+  <li>To understand your photography/wedding service inquiries and provide timely, accurate responses.</li>
+  <li>To improve our internal customer service quality.</li>
+  <li>We do <strong>not</strong> sell, rent, or share your personal data with third parties for advertising.</li>
+</ul>
+<h2>3. Data Retention &amp; Deletion</h2>
+<p>Conversation data is retained only as long as necessary to provide customer support. You may request deletion of your data at any time by following our <a href="/data-deletion">Data Deletion Instructions</a>.</p>
+<h2>4. Contact</h2>
+<p>For privacy questions, please message our official Facebook Page (Quien Studio) directly.</p>
+</body></html>"""
+
+
+@app.get("/data-deletion", response_class=HTMLResponse)
+async def data_deletion():
+    return """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>User Data Deletion - Quien Studio</title>
+<style>body{font-family:sans-serif;max-width:760px;margin:40px auto;padding:0 20px;line-height:1.6;color:#222;}h1{color:#0866ff;}</style></head>
+<body>
+<h1>User Data Deletion Instructions — Quien Studio</h1>
+<p>If you have messaged the Quien Studio Facebook Page and would like your conversation data deleted from our support system, please follow either method below:</p>
+<ol>
+  <li><strong>Via Facebook Messenger:</strong> Send a message to our Facebook Page stating <em>"Delete my data"</em> (or <em>"Xóa dữ liệu của tôi"</em>). Our team will remove your conversation history from our database within 48 hours.</li>
+  <li><strong>Via Facebook App Settings:</strong> Go to your Facebook Account Settings &rarr; <em>Security and Login</em> &rarr; <em>Business Integrations</em> (or <em>Apps and Websites</em>) &rarr; select <strong>QuienStudio Chatbot</strong> &rarr; click <strong>Remove</strong>.</li>
+</ol>
+</body></html>"""
 
 
 # ========================
